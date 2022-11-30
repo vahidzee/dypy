@@ -113,7 +113,19 @@ eval_function("def my_function(x): return x + 1", function_of_interest="my_funct
 2. A code block, which can contain multiple lines and functions, in which case you need to specify the name of the function of interest using the `function_of_interest` argument. `eval_function` will evaluate the code block and retrieve your function of interest.
 3. A dictionary of "code", ["context", "function_of_interest"] pairs. Useful when you are using `eval_function` on top of a configuration file, in which case you can specify the code and the context for each function of interest.
 
-When evaluating a function descriptor, you can specify a context in which the code will be evaluated. This is useful when you want to use variables that are not defined in the current scope. `dycode` has a context registry that you can use as a global context for all your function evaluations. You can also specify a context for each function evaluation using the `context` argument. The context is a dictionary of variable names and their values. You can do as follows:
+When evaluating a function descriptor, you can specify a context in which the code will be evaluated. This is useful when you want to use variables that are not defined in the current scope. `dycode` has a context registry that you can use as a global context for all your function evaluations.
+
+```python
+from dycode import eval_function, register_context
+import math
+
+register_context(math, "math") # register math package as a context
+# you can also use register(math), which will use the name of the package as the context name
+
+eval_function("math.cos") # <function <lambda> at MEM_ADDRESS> (math is looked up through the context registry)
+```
+
+You can also specify a context for each function evaluation using the `context` argument. The context is a dictionary of variable names and their values. You can do as follows:
 
 ```python
 eval_function("def my_function(x): return x + y", function_of_interest="my_function", context={"y": 1})(2) # 3
