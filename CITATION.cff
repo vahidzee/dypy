@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+title: '"DyCode": Python toolset for dynamic code manipulations'
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Vahid
+    family-names: Zehtab
+    email: vahid@zehtab.me
+repository-code: "https://github.com/vahidzee/dycode/"
+abstract: >-
+  A python package for 
+keywords:
+  - Dynamic Function Creation
+  - Dynamic Object Creation
+  - Dynamic Code Generation
+  - Dynamic Code Manipulation
+  - Dynamic Code Injection
+  - Dynamic Code Execution
+  - Lazy Function Evaluation
+  - Lazy Variable Evaluation
+  - Lazy Object Evaluation
+license: MIT
+date-released: "2022-11-30"
