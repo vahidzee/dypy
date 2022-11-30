@@ -1,12 +1,9 @@
 import importlib
 import typing as th
-import types
 import inspect
 import os
 from .utils import is_module, is_package
-
-# types
-ContextType = th.Union[th.Dict[str, th.Any], types.ModuleType, th.Any]  # anything that we can get items from
+from .types import ContextType, _NoValue
 
 
 def importer(name) -> ContextType:
@@ -56,7 +53,7 @@ def greedy_import_context(name: str, upwards: bool = False, level: int = 0) -> t
         th.Tuple[th.Any, str]: The first successful import, and the name of the variable we were able to lookup.
     """
     module_hierarchy = name.split(".")
-    imported_module = None
+    imported_module = _NoValue
     for trial_index in range(
         1 if upwards else len(module_hierarchy) - level,
         (len(module_hierarchy) + 1 - level) if upwards else -1,
@@ -104,19 +101,26 @@ def _get_value(name: str, prefer_modules: bool = False, strict: bool = True, con
 
     results = []
     try:
-        results.append(__get_value(name, upwards=True, strict=strict, context=context))
+        res = __get_value(name, upwards=True, strict=strict, context=context)
+        if res is not _NoValue:
+            results.append(res)
     except:
         pass
     try:
-        results.append(__get_value(name, upwards=False, strict=strict, context=context))
+        res = __get_value(name, upwards=False, strict=strict, context=context)
+        if res is not _NoValue:
+            results.append(res)
     except:
         pass
+
     if not results:
-        raise ImportError(name)
+        if strict:
+            raise ImportError("Could not find %s" % name)
+        return None
     if len(results) == 1:
         return results[0]
 
-    # checking for successful lookup in non-strict config
+    # checking for successful lookup in non-strict config (one of the two lookups succeeded)
     if not strict and results[0] is None and results[1] is not None:
         return results[1]
     elif not strict and results[0] is not None and results[1] is None:

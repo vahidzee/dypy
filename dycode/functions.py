@@ -1,18 +1,8 @@
-import importlib
 import typing as th
 import types
 import inspect
-import os
-from .utils import is_module, is_package
 import functools
-
-# types
-CallableFunctionDescriptorStr = th.Union[
-    str, th.Dict[str, th.Any]
-]  # either a function code (str), or a dict with a "code" key (str) and other keys (dict)
-FunctionDescriptor = th.Union[
-    th.Callable, CallableFunctionDescriptorStr
-]  # either a function or a function descriptor (str, dict)
+from .types import ContextType, FunctionDescriptor, CallableFunctionDescriptorStr
 
 # registry for function evaluation
 CONTEXT_REGISTRY = dict()
@@ -47,7 +37,7 @@ def dynamic_args_wrapper(function: th.Callable) -> th.Callable:
     signature = inspect.signature(function)
     params = signature.parameters
 
-    @functools.wraps(function)
+    @functools.wraps(function)  # to preserve the function name and docstring in the wrapper
     def wrapper(*args, **kwargs):
         call_kwargs = {name: kwargs[name] for name in params if name in kwargs}
         return function(*args, **call_kwargs)
@@ -55,7 +45,9 @@ def dynamic_args_wrapper(function: th.Callable) -> th.Callable:
     return wrapper
 
 
-def generate_function(code_block, function: str) -> th.Callable[[th.Any], th.Any]:
+def generate_function(
+    code_block: str, function: str, context: th.Optional[ContextType] = None
+) -> th.Callable[[th.Any], th.Any]:
     """
     Generates a function from a code block.
 
@@ -66,7 +58,8 @@ def generate_function(code_block, function: str) -> th.Callable[[th.Any], th.Any
     Returns:
         typing.Callable[[typing.Any], typing.Any]: The generated function.
     """
-    context = dict()
+    context = context or {}
+    context.update(CONTEXT_REGISTRY)
     exec(code_block, dict(), context)
     return types.FunctionType(
         code=context[function].__code__,
@@ -164,6 +157,7 @@ def eval_function(
                 function=function_descriptor.get("function_of_interest", function_of_interest)
                 if isinstance(function_descriptor, dict)
                 else function_of_interest,
+                context=context,
             )
 
     return dynamic_args_wrapper(results) if dynamic_args else results
