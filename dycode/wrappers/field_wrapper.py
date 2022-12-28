@@ -4,9 +4,41 @@ import inspect
 import abc
 from ..get_value import get_value as original_get_value
 import types
+from ..types import ContextType
 
-INDICATOR_PREF = "__dy__"
 _FIELDS = "__dycode_fields__"
+
+
+class DynamicField:
+    def __init__(
+        self,
+        value,
+        /,
+        *,
+        eval: bool = False,
+        prefer_modules: bool = False,
+        strict: bool = True,
+        context: th.Optional[ContextType] = None,
+    ) -> None:
+        self.value = (
+            value
+            if not eval
+            else original_get_value(value, prefer_modules, strict, context)
+        )
+
+
+def field(
+    value,
+    /,
+    *,
+    eval: bool = False,
+    prefer_modules: bool = False,
+    strict: bool = True,
+    context: th.Optional[ContextType] = None,
+) -> DynamicField:
+    return DynamicField(
+        value, eval=eval, prefer_modules=prefer_modules, strict=strict, context=context
+    )
 
 
 def get_dynamic_value(self, key: str, default: th.Any = None) -> th.Any:
@@ -32,14 +64,16 @@ def get_dynamic_value(self, key: str, default: th.Any = None) -> th.Any:
 
 
 def _dynamize_fields(
-    cls, *, indicator_prefix: th.Optional[str] = None, eval: bool = True
+    cls,
+    *,
+    indicator_prefix: th.Optional[str] = None,
 ) -> type:
 
-    # all the class attributes starting with this indicator prefix will
-    # be considered as dynamic attributes and they are instance attributes rather than class attributes
-    # just like dataclasses
-    indicator_prefix = indicator_prefix or INDICATOR_PREF
-    full_indicator_prefix = f"_{cls.__name__}{indicator_prefix}"
+    # all the class attributes having the type DynamicField and starting with indicator_prefix
+    # are considered as dynamic fields
+    # and are instance attributes rather than class attributes, just like dataclasses
+    indicator_prefix = indicator_prefix or ""
+    full_indicator_prefix = f"{indicator_prefix}"
 
     # A list of all the dynamic fields of the class
     # (key, value) : key is considered without the indicator prefix
@@ -78,40 +112,36 @@ def _dynamize_fields(
     # Now find fields in the class that start with the indicator_prefix
     # and exclude that prefix and put it in dynamic_fields
     cls_annotations = cls.__dict__.get("__annotations__", {})
-    for name, value in cls.__dict__.items():
-        if name.startswith(full_indicator_prefix):
+    for name, val in cls.__dict__.items():
+        if isinstance(val, DynamicField) and name.startswith(full_indicator_prefix):
 
-            if value is None:
+            if val is None:
                 raise AttributeError(
                     f"Field {name} should have an initial default value"
                 )
+
+            # get the value in the field
+            value = val.value
             actual_name = name[len(full_indicator_prefix) :]
 
-            annotation = str if eval else cls_annotations.get(name, None)
+            annotation = cls_annotations.get(name, None)
             # if annotation is set to None then get the annotation from default value
             if annotation is None:
                 annotation = type(value)
 
-            try:
-                default_value = (
-                    original_get_value(value, context=globals) if eval else value
-                )
-            except ImportError as e:
-                default_value = value
-                annotation = cls_annotations.get(name, None) or type(value)
-
-            dynamic_fields[actual_name] = (annotation, default_value)
+            dynamic_fields[actual_name] = (annotation, value)
 
     # Remove all the fields starting with the indicator_prefix
     # from the class dictionary so that it can work seamlessly with other libraries
 
     for name in dynamic_fields.keys():
-        delattr(cls, full_indicator_prefix + name)
-        if (
-            "__annotations__" in cls.__dict__
-            and indicator_prefix + name in cls.__dict__["__annotations__"]
-        ):
-            cls.__dict__["__annotations__"].pop(indicator_prefix + name)
+        if getattr(cls, full_indicator_prefix + name, None) is not None:
+            delattr(cls, full_indicator_prefix + name)
+            if (
+                "__annotations__" in cls.__dict__
+                and indicator_prefix + name in cls.__dict__["__annotations__"]
+            ):
+                cls.__dict__["__annotations__"].pop(indicator_prefix + name)
 
     # Add the dynamic_fields to the class dictionary
     setattr(cls, _FIELDS, dynamic_fields)
@@ -132,16 +162,24 @@ def _dynamize_fields(
 
         prev_init(self, *args, **kwargs)
 
+        # set the default values of the dynamic fields
         for name, value in getattr(self.__class__, _FIELDS, {}).items():
             setattr(self, name, value[1])
 
+        # overwrite stuff that has been inputted in the init function
         for name, value in del_from_kwargs:
-            setattr(self, name, value)
+            if not isinstance(value, DynamicField):
+                raise ValueError(
+                    f"Dynamic field {name} should be of type DynamicField, try out dycode.wrappers.field({value})"
+                )
+            setattr(self, name, value.value)
+
         # init should return None by convention
         return None
 
     # 2. set the signature of the init function
     sig = inspect.Signature.from_callable(prev_init)
+
     all_parameters = list(sig.parameters.values())
     for name in dynamic_fields.keys():
         new_param = inspect.Parameter(
@@ -150,7 +188,17 @@ def _dynamize_fields(
             default=dynamic_fields[name][1],
             annotation=dynamic_fields[name][0],
         )
-        all_parameters.append(new_param)
+        if new_param not in all_parameters:
+            all_parameters.append(new_param)
+
+    # delete *args and **kwargs from all_parameters
+    all_parameters = [
+        p for p in all_parameters if p.kind != inspect.Parameter.VAR_POSITIONAL
+    ]
+
+    all_parameters = [
+        p for p in all_parameters if p.kind != inspect.Parameter.VAR_KEYWORD
+    ]
 
     new_init.__signature__ = inspect.Signature(
         all_parameters, return_annotation=sig.return_annotation
@@ -167,9 +215,7 @@ def _dynamize_fields(
     return cls
 
 
-def dynamize_fields(
-    cls=None, /, *, indicator_prefix: th.Optional[str] = None, eval=False
-):
+def dynamize_fields(cls=None, /, *, indicator_prefix: th.Optional[str] = None):
     """
     This function is a class decorator that wraps the class with a class wrapper.
     and using the implement attribute, these functions can be implemented later on using code blocks.
@@ -194,7 +240,7 @@ def dynamize_fields(
     """
 
     def wrap(cls):
-        return _dynamize_fields(cls, indicator_prefix=indicator_prefix, eval=eval)
+        return _dynamize_fields(cls, indicator_prefix=indicator_prefix)
 
     # If the class is not given as an argument return
     # a decorator that takes the class as an argument
