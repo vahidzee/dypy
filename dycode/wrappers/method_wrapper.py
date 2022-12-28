@@ -176,7 +176,8 @@ def _dynamize_methods(cls: type, blend: bool) -> type:
             default=None,
             annotation=th.Optional[FunctionDescriptor],
         )
-        all_parameters.append(new_param)
+        if new_param not in all_parameters:
+            all_parameters.append(new_param)
         # all_parameters[f"{PREF_FOR_CONSTRUCTOR}{name}"] = new_param
 
     # add all the non prefixed parameters to the signature that are blended
@@ -185,14 +186,23 @@ def _dynamize_methods(cls: type, blend: bool) -> type:
             raise Exception(
                 f"Cannot blend dynamic method with attribute of the same name: {name}\nConsider changing the method name!"
             )
-        all_parameters.append(
-            inspect.Parameter(
-                name,
-                inspect.Parameter.KEYWORD_ONLY,
-                default=inspect.Parameter.empty,
-                annotation=th.Optional[FunctionDescriptor],
-            )
+        new_param = inspect.Parameter(
+            name,
+            inspect.Parameter.KEYWORD_ONLY,
+            default=inspect.Parameter.empty,
+            annotation=th.Optional[FunctionDescriptor],
         )
+        if new_param not in all_parameters:
+            all_parameters.append(new_param)
+
+    # delete *args and **kwargs from all_parameters (TODO: not sure of this)
+    all_parameters = [
+        p for p in all_parameters if p.kind != inspect.Parameter.VAR_POSITIONAL
+    ]
+
+    all_parameters = [
+        p for p in all_parameters if p.kind != inspect.Parameter.VAR_KEYWORD
+    ]
     # replace the parameters with the extended version
     new_init.__signature__ = inspect.Signature(
         all_parameters, return_annotation=sig.return_annotation
