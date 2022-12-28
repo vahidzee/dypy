@@ -9,7 +9,7 @@ INDICATOR_PREF = "__dy__"
 _FIELDS = "__dycode_fields__"
 
 
-def get_value(self, key: str, default: th.Any = None) -> th.Any:
+def get_dynamic_value(self, key: str, default: th.Any = None) -> th.Any:
     """
     This function is used to get the value of a dynamic field.
 
@@ -160,7 +160,7 @@ def _dynamize_fields(
     cls.__init__ = new_init
 
     # Now implement the getvalue method
-    setattr(cls, "get_value", get_value)
+    setattr(cls, "get_dynamic_value", get_dynamic_value)
 
     abc.update_abstractmethods(cls)
 
