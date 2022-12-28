@@ -7,7 +7,7 @@ import sys
 import inspect
 from ..types import ContextType, FunctionDescriptor, CallableFunctionDescriptorStr
 from ..functions import eval_function
-
+import abc
 
 PREF_FOR_CONSTRUCTOR = "__dy__"
 
@@ -200,6 +200,8 @@ def _dynamize_methods(cls: type, blend: bool) -> type:
 
     # finally, setup as the new init function
     cls.__init__ = new_init
+
+    abc.update_abstractmethods(cls)
 
     return cls
 
