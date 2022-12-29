@@ -6,14 +6,14 @@ with open("README.md", encoding="utf-8") as f:
 
 setup(
     name="dycode",
-    packages=find_packages(include=["dycode"]),
+    packages=find_packages(include=["dycode", "dycode.*"]),
     version=__version__,
     license="MIT",
     description="A toolset for dynamic python code manipulations",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    author="Vahid Zehtab",
-    author_email="vahid@zehtab.me",
+    author="Vahid Zehtab, Hamid Kamkari",
+    author_email="vahid@zehtab.me, hamidrezakamkari@gmail.com",
     url="https://github.com/vahidzee/dycode",
     keywords=["dynamic coding", "dynamic functions", "lazy evaluation"],
     classifiers=[
