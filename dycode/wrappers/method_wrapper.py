@@ -12,7 +12,7 @@ import abc
 PREF_FOR_CONSTRUCTOR = "__dy__"
 
 
-def dynamic_method(func: th.Callable, blend=False) -> th.Callable:
+def dynamic_method(func: th.Callable, blend: th.Optional[bool] = None) -> th.Callable:
     """
     This function is a method decorator that tags the method with the attribute __is_dynamic_method__.
     This attribute is used by the class wrapper to identify the method as a dynamic method.
@@ -145,7 +145,7 @@ def _dynamize_methods(cls: type, blend: bool) -> type:
         delete_from_kwargs = []
         for name in kwargs:
             key_name = name
-            if name.find(PREF_FOR_CONSTRUCTOR) == 0:
+            if name.startswith(PREF_FOR_CONSTRUCTOR):
                 # check if name starts with __dy__
                 key_name = name[len(PREF_FOR_CONSTRUCTOR) :]
             else:
@@ -217,6 +217,29 @@ def _dynamize_methods(cls: type, blend: bool) -> type:
 
 
 def dynamize_methods(cls=None, /, *, blend=True):
+    """
+    Dynamize the methods of a class that are tagged.
+
+    This way, we can implement the methods in the constructor fast and easy.
+
+    Parameters
+    ----------
+    cls : type
+        The class to dynamize the methods of.
+    blend : bool
+        If True, then all the methods are assumed to have unique names and different from
+        the attributes of the class, and then one can define them in the constructor easily.
+        If False, then the methods should be prefixed while defining them in the constructor.
+        -- However, if a particular method is tagged with a specific blend option, then this will
+        overwrite the default blend option, meaning that for a class with blend=False, if a specific
+        method has blend=True then in the constructor it should not be prefixed.
+
+    Returns
+    -------
+    type
+        The class with the dynamized methods.
+    """
+
     def wrap(cls):
         return _dynamize_methods(cls, blend=blend)
 
