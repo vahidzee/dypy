@@ -45,6 +45,23 @@ def dynamic_args_wrapper(function: th.Callable) -> th.Callable:
     return wrapper
 
 
+def update_function_context(function: th.Callable, context: th.Optional[ContextType] = None) -> th.Callable:
+    """
+    Updates the context of a function.
+
+    Args:
+        function (typing.Callable): The function to update.
+        context (typing.Optional[ContextType]): The context to update the function with.
+
+    Returns:
+        typing.Callable: The updated function.
+    """
+    context = context or {}
+    context.update(CONTEXT_REGISTRY)
+    function.__globals__.update(context)
+    return function
+
+
 def generate_function(
     code_block: str, function: str, context: th.Optional[ContextType] = None
 ) -> th.Callable[[th.Any], th.Any]:

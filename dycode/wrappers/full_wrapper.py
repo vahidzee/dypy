@@ -1,6 +1,6 @@
 from dycode.wrappers.field_wrapper import dynamize_fields
 from dycode.wrappers.method_wrapper import dynamize_methods
-from ..functions import eval_function
+from dycode.core.functions import eval_function
 import inspect
 
 # TODO: check this later on
@@ -30,9 +30,7 @@ for wrapper in all_wrappers[1:]:
             params.append(value)
 
     # assign a new signature which contains the new parameters and has the return annotation updated
-    _dynamize.__signature__ = inspect.Signature(
-        params, return_annotation=new_sig.return_annotation
-    )
+    _dynamize.__signature__ = inspect.Signature(params, return_annotation=new_sig.return_annotation)
 
 
 def dynamize(cls=None, *args, **kwargs):

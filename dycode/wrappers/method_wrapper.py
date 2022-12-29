@@ -1,12 +1,9 @@
 import typing as th
-from ..evaluate import eval
-import functools
-from types import MethodType
 import types
 import sys
 import inspect
-from ..types import ContextType, FunctionDescriptor, CallableFunctionDescriptorStr
-from ..functions import eval_function
+from dycode.core.types import FunctionDescriptor
+from dycode.core.functions import eval_function
 import abc
 
 PREF_FOR_CONSTRUCTOR = "__dy__"
@@ -121,13 +118,9 @@ def _dynamize_methods(cls: type, blend: bool) -> type:
     # handle inheritence, merge the dynamic methods of the parent classes
     for b in cls.__mro__[-1:0:-1]:
         # merge dynamic methods with parent
-        dynamic_methods = dynamic_methods.union(
-            getattr(b, "__dynamic_methods__", set())
-        )
+        dynamic_methods = dynamic_methods.union(getattr(b, "__dynamic_methods__", set()))
         # merge blended dynamic methods with parent
-        blended_dynamic_methods = blended_dynamic_methods.union(
-            getattr(b, "__blended_dynamic_methods__", set())
-        )
+        blended_dynamic_methods = blended_dynamic_methods.union(getattr(b, "__blended_dynamic_methods__", set()))
     cls.__dynamic_methods__ = frozenset(dynamic_methods)
     cls.__blended_dynamic_methods__ = frozenset(blended_dynamic_methods)
 
@@ -196,22 +189,16 @@ def _dynamize_methods(cls: type, blend: bool) -> type:
             all_parameters.append(new_param)
 
     # delete *args and **kwargs from all_parameters (TODO: not sure of this)
-    all_parameters = [
-        p for p in all_parameters if p.kind != inspect.Parameter.VAR_POSITIONAL
-    ]
+    all_parameters = [p for p in all_parameters if p.kind != inspect.Parameter.VAR_POSITIONAL]
 
-    all_parameters = [
-        p for p in all_parameters if p.kind != inspect.Parameter.VAR_KEYWORD
-    ]
+    all_parameters = [p for p in all_parameters if p.kind != inspect.Parameter.VAR_KEYWORD]
     # replace the parameters with the extended version
-    new_init.__signature__ = inspect.Signature(
-        all_parameters, return_annotation=sig.return_annotation
-    )
+    new_init.__signature__ = inspect.Signature(all_parameters, return_annotation=sig.return_annotation)
 
     # finally, setup as the new init function
     cls.__init__ = new_init
 
-    abc.update_abstractmethods(cls)
+    # abc.update_abstractmethods(cls) # todo: support lower python versions
 
     return cls
 

@@ -2,9 +2,8 @@ import typing as th
 import sys
 import inspect
 import abc
-from ..get_value import get_value as original_get_value
-import types
-from ..types import ContextType
+from dycode.core.get_value import get_value as original_get_value
+from dycode.core.types import ContextType
 
 _FIELDS = "__dycode_fields__"
 
@@ -20,11 +19,7 @@ class DynamicField:
         strict: bool = True,
         context: th.Optional[ContextType] = None,
     ) -> None:
-        self.value = (
-            value
-            if not eval
-            else original_get_value(value, prefer_modules, strict, context)
-        )
+        self.value = value if not eval else original_get_value(value, prefer_modules, strict, context)
 
 
 def field(
@@ -36,9 +31,7 @@ def field(
     strict: bool = True,
     context: th.Optional[ContextType] = None,
 ) -> DynamicField:
-    return DynamicField(
-        value, eval=eval, prefer_modules=prefer_modules, strict=strict, context=context
-    )
+    return DynamicField(value, eval=eval, prefer_modules=prefer_modules, strict=strict, context=context)
 
 
 def get_dynamic_value(self, key: str, default: th.Any = None) -> th.Any:
@@ -116,9 +109,7 @@ def _dynamize_fields(
         if isinstance(val, DynamicField) and name.startswith(full_indicator_prefix):
 
             if val is None:
-                raise AttributeError(
-                    f"Field {name} should have an initial default value"
-                )
+                raise AttributeError(f"Field {name} should have an initial default value")
 
             # get the value in the field
             value = val.value
@@ -137,10 +128,7 @@ def _dynamize_fields(
     for name in dynamic_fields.keys():
         if getattr(cls, full_indicator_prefix + name, None) is not None:
             delattr(cls, full_indicator_prefix + name)
-            if (
-                "__annotations__" in cls.__dict__
-                and indicator_prefix + name in cls.__dict__["__annotations__"]
-            ):
+            if "__annotations__" in cls.__dict__ and indicator_prefix + name in cls.__dict__["__annotations__"]:
                 cls.__dict__["__annotations__"].pop(indicator_prefix + name)
 
     # Add the dynamic_fields to the class dictionary
@@ -192,17 +180,11 @@ def _dynamize_fields(
             all_parameters.append(new_param)
 
     # delete *args and **kwargs from all_parameters
-    all_parameters = [
-        p for p in all_parameters if p.kind != inspect.Parameter.VAR_POSITIONAL
-    ]
+    all_parameters = [p for p in all_parameters if p.kind != inspect.Parameter.VAR_POSITIONAL]
 
-    all_parameters = [
-        p for p in all_parameters if p.kind != inspect.Parameter.VAR_KEYWORD
-    ]
+    all_parameters = [p for p in all_parameters if p.kind != inspect.Parameter.VAR_KEYWORD]
 
-    new_init.__signature__ = inspect.Signature(
-        all_parameters, return_annotation=sig.return_annotation
-    )
+    new_init.__signature__ = inspect.Signature(all_parameters, return_annotation=sig.return_annotation)
 
     # 3. set the new init function
     cls.__init__ = new_init
@@ -210,7 +192,7 @@ def _dynamize_fields(
     # Now implement the getvalue method
     setattr(cls, "get_dynamic_value", get_dynamic_value)
 
-    abc.update_abstractmethods(cls)
+    # abc.update_abstractmethods(cls) # todo: handle lower python versions
 
     return cls
 
