@@ -4,6 +4,7 @@ import inspect
 import abc
 from dycode.core.get_value import get_value as original_get_value
 from dycode.core.types import ContextType
+from dycode.wrappers.utils import make_inheritence_strict
 
 _FIELDS = "__dycode_fields__"
 
@@ -19,7 +20,24 @@ class DynamicField:
         strict: bool = True,
         context: th.Optional[ContextType] = None,
     ) -> None:
-        self.value = value if not eval else original_get_value(value, prefer_modules, strict, context)
+        self.strict = strict
+        self.prefer_modules = prefer_modules
+        self.eval = eval
+        self.context = context
+        self._value = value
+
+    def change_context(self, context: th.Optional[ContextType] = None):
+        self.context = context
+
+    @property
+    def value(self):
+        return (
+            self._value
+            if not self.eval
+            else original_get_value(
+                self._value, self.prefer_modules, self.strict, self.context
+            )
+        )
 
 
 def field(
@@ -31,7 +49,9 @@ def field(
     strict: bool = True,
     context: th.Optional[ContextType] = None,
 ) -> DynamicField:
-    return DynamicField(value, eval=eval, prefer_modules=prefer_modules, strict=strict, context=context)
+    return DynamicField(
+        value, eval=eval, prefer_modules=prefer_modules, strict=strict, context=context
+    )
 
 
 def get_dynamic_value(self, key: str, default: th.Any = None) -> th.Any:
@@ -57,9 +77,7 @@ def get_dynamic_value(self, key: str, default: th.Any = None) -> th.Any:
 
 
 def _dynamize_fields(
-    cls,
-    *,
-    indicator_prefix: th.Optional[str] = None,
+    cls: type, indicator_prefix: th.Optional[str], inheritence_strict: bool = True
 ) -> type:
 
     # all the class attributes having the type DynamicField and starting with indicator_prefix
@@ -109,7 +127,18 @@ def _dynamize_fields(
         if isinstance(val, DynamicField) and name.startswith(full_indicator_prefix):
 
             if val is None:
-                raise AttributeError(f"Field {name} should have an initial default value")
+                raise AttributeError(
+                    f"Field {name} should have an initial default value"
+                )
+
+            if val.context:
+                raise NotImplementedError(
+                    "Context merging is not yet implemented in the field wrapper"
+                )
+
+            # Change the context to the class context
+            # TODO: optimally, one should merge the context of the class and the field
+            val.change_context(globals)
 
             # get the value in the field
             value = val.value
@@ -128,7 +157,10 @@ def _dynamize_fields(
     for name in dynamic_fields.keys():
         if getattr(cls, full_indicator_prefix + name, None) is not None:
             delattr(cls, full_indicator_prefix + name)
-            if "__annotations__" in cls.__dict__ and indicator_prefix + name in cls.__dict__["__annotations__"]:
+            if (
+                "__annotations__" in cls.__dict__
+                and indicator_prefix + name in cls.__dict__["__annotations__"]
+            ):
                 cls.__dict__["__annotations__"].pop(indicator_prefix + name)
 
     # Add the dynamic_fields to the class dictionary
@@ -148,22 +180,27 @@ def _dynamize_fields(
         for name, _ in del_from_kwargs:
             kwargs.pop(name)
 
-        prev_init(self, *args, **kwargs)
+        def set_all_values():
+            # set the default values of the dynamic fields
+            for name, value in getattr(self.__class__, _FIELDS, {}).items():
+                setattr(self, name, value[1])
 
-        # set the default values of the dynamic fields
-        for name, value in getattr(self.__class__, _FIELDS, {}).items():
-            setattr(self, name, value[1])
+            # write stuff that has been inputted in the init function
+            for name, value in del_from_kwargs:
+                # works with both DynamicField and the actual value
+                if isinstance(value, DynamicField):
+                    setattr(self, name, value.value)
+                else:
+                    setattr(self, name, value)
 
-        # overwrite stuff that has been inputted in the init function
-        for name, value in del_from_kwargs:
-            if not isinstance(value, DynamicField):
-                raise ValueError(
-                    f"Dynamic field {name} should be of type DynamicField, try out dycode.wrappers.field({value})"
-                )
-            setattr(self, name, value.value)
-
+        # First set all values for potential usage in the __init__
+        set_all_values()
         # init should return None by convention
-        return None
+        ret = prev_init(self, *args, **kwargs)
+        # Then re-write all the values in the __init__
+        set_all_values()
+
+        return ret
 
     # 2. set the signature of the init function
     sig = inspect.Signature.from_callable(prev_init)
@@ -180,11 +217,17 @@ def _dynamize_fields(
             all_parameters.append(new_param)
 
     # delete *args and **kwargs from all_parameters
-    all_parameters = [p for p in all_parameters if p.kind != inspect.Parameter.VAR_POSITIONAL]
+    all_parameters = [
+        p for p in all_parameters if p.kind != inspect.Parameter.VAR_POSITIONAL
+    ]
 
-    all_parameters = [p for p in all_parameters if p.kind != inspect.Parameter.VAR_KEYWORD]
+    all_parameters = [
+        p for p in all_parameters if p.kind != inspect.Parameter.VAR_KEYWORD
+    ]
 
-    new_init.__signature__ = inspect.Signature(all_parameters, return_annotation=sig.return_annotation)
+    new_init.__signature__ = inspect.Signature(
+        all_parameters, return_annotation=sig.return_annotation
+    )
 
     # 3. set the new init function
     cls.__init__ = new_init
@@ -194,10 +237,20 @@ def _dynamize_fields(
 
     # abc.update_abstractmethods(cls) # todo: handle lower python versions
 
+    if inheritence_strict:
+        # make the class inheritence strict so that every child class should have the _FIELDS attribute
+        cls = make_inheritence_strict(cls, _FIELDS)
+
     return cls
 
 
-def dynamize_fields(cls=None, /, *, indicator_prefix: th.Optional[str] = None):
+def dynamize_fields(
+    cls=None,
+    /,
+    *,
+    indicator_prefix: th.Optional[str] = None,
+    inheritence_strict: bool = True,
+):
     """
     This function is a class decorator that wraps the class with a class wrapper.
     and using the implement attribute, these functions can be implemented later on using code blocks.
@@ -222,7 +275,11 @@ def dynamize_fields(cls=None, /, *, indicator_prefix: th.Optional[str] = None):
     """
 
     def wrap(cls):
-        return _dynamize_fields(cls, indicator_prefix=indicator_prefix)
+        return _dynamize_fields(
+            cls,
+            inheritence_strict=inheritence_strict,
+            indicator_prefix=indicator_prefix,
+        )
 
     # If the class is not given as an argument return
     # a decorator that takes the class as an argument

@@ -5,6 +5,7 @@ import inspect
 from dycode.core.types import FunctionDescriptor
 from dycode.core.functions import eval_function
 import abc
+from dycode.wrappers.utils import make_inheritence_strict
 
 PREF_FOR_CONSTRUCTOR = "__dy__"
 
@@ -61,7 +62,7 @@ def implement_methods(self, **kwargs):
         implement_method(self, method_name, method_code)
 
 
-def _dynamize_methods(cls: type, blend: bool) -> type:
+def _dynamize_methods(cls: type, inheritence_strict: bool, blend: bool) -> type:
     """
     This function is a class decorator that wraps the class with a class wrapper.
     The input class will have some methods tagged with @dynamic_method
@@ -82,7 +83,6 @@ def _dynamize_methods(cls: type, blend: bool) -> type:
     type
         The wrapped class
     """
-
     # Heavily influenced by dataclasses code
     if cls.__module__ in sys.modules:
         globals = sys.modules[cls.__module__].__dict__
@@ -118,9 +118,13 @@ def _dynamize_methods(cls: type, blend: bool) -> type:
     # handle inheritence, merge the dynamic methods of the parent classes
     for b in cls.__mro__[-1:0:-1]:
         # merge dynamic methods with parent
-        dynamic_methods = dynamic_methods.union(getattr(b, "__dynamic_methods__", set()))
+        dynamic_methods = dynamic_methods.union(
+            getattr(b, "__dynamic_methods__", set())
+        )
         # merge blended dynamic methods with parent
-        blended_dynamic_methods = blended_dynamic_methods.union(getattr(b, "__blended_dynamic_methods__", set()))
+        blended_dynamic_methods = blended_dynamic_methods.union(
+            getattr(b, "__blended_dynamic_methods__", set())
+        )
     cls.__dynamic_methods__ = frozenset(dynamic_methods)
     cls.__blended_dynamic_methods__ = frozenset(blended_dynamic_methods)
 
@@ -189,21 +193,34 @@ def _dynamize_methods(cls: type, blend: bool) -> type:
             all_parameters.append(new_param)
 
     # delete *args and **kwargs from all_parameters (TODO: not sure of this)
-    all_parameters = [p for p in all_parameters if p.kind != inspect.Parameter.VAR_POSITIONAL]
+    all_parameters = [
+        p for p in all_parameters if p.kind != inspect.Parameter.VAR_POSITIONAL
+    ]
 
-    all_parameters = [p for p in all_parameters if p.kind != inspect.Parameter.VAR_KEYWORD]
+    all_parameters = [
+        p for p in all_parameters if p.kind != inspect.Parameter.VAR_KEYWORD
+    ]
     # replace the parameters with the extended version
-    new_init.__signature__ = inspect.Signature(all_parameters, return_annotation=sig.return_annotation)
+    new_init.__signature__ = inspect.Signature(
+        all_parameters, return_annotation=sig.return_annotation
+    )
 
     # finally, setup as the new init function
     cls.__init__ = new_init
 
     # abc.update_abstractmethods(cls) # todo: support lower python versions
 
+    if inheritence_strict:
+        # if inheritence is set to strict then all the children of this class should also contain
+        # the dynamic methods
+        cls = make_inheritence_strict(cls, "__dynamic_methods__")
+
     return cls
 
 
-def dynamize_methods(cls=None, /, *, blend=True):
+def dynamize_methods(
+    cls=None, /, *, inheritence_strict: bool = True, blend: bool = True
+):
     """
     Dynamize the methods of a class that are tagged.
 
@@ -228,7 +245,9 @@ def dynamize_methods(cls=None, /, *, blend=True):
     """
 
     def wrap(cls):
-        return _dynamize_methods(cls, blend=blend)
+        return _dynamize_methods(
+            cls, inheritence_strict=inheritence_strict, blend=blend
+        )
 
     # If the class is not given as an argument return
     # a decorator that takes the class as an argument
