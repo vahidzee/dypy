@@ -290,6 +290,15 @@ def _dynamize_fields(
                     else del_from_kwargs_dict[name + _DY_CONSTRUCTOR_ARGS_SUFFIX]
                 )
 
+                if class_name is None:
+                    if val.nullable:
+                        setattr(self, name, None)
+                        continue
+                    else:
+                        raise TypeError(
+                            f"Field {name} is not nullable but None given in constructor"
+                        )
+
                 # get the default constructor args
 
                 if val and val._value == class_name:
