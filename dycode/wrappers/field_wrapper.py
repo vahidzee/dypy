@@ -5,6 +5,7 @@ import abc
 from dycode.core.get_value import get_value as original_get_value
 from dycode.core.types import ContextType
 from dycode.wrappers.utils import make_inheritence_strict
+import warnings
 
 _FIELDS = "__dycode_fields__"
 _DY_TYPE_SUFFIX = "_type"
@@ -25,7 +26,9 @@ class DynamicField:
         # type that can be instantiated
         is_class: bool = False,
         constructor_arguments: th.Optional[dict] = None,
+        nullable: bool = False,
     ) -> None:
+        self.nullable = nullable
         self.strict = strict
         self.prefer_modules = prefer_modules
         self.eval = eval
@@ -39,7 +42,9 @@ class DynamicField:
         self._value = value
 
     def change_context(self, context: th.Optional[ContextType] = None):
-        self.context = context
+        # TODO: might not be the best way to go
+        if self.context is None:
+            self.context = context
 
     @property
     def value(self):
@@ -58,24 +63,36 @@ class DynamicField:
 
 
 def field(
-    value,
+    default: th.Any,
     /,
     *,
     eval: bool = False,
     prefer_modules: bool = False,
     strict: bool = True,
-    context: th.Optional[ContextType] = None,
-    is_class: bool = False,
-    constructor_arguments: th.Optional[dict] = None,
+    nullable: bool = False,
 ) -> DynamicField:
     return DynamicField(
-        value,
+        default,
         eval=eval,
         prefer_modules=prefer_modules,
         strict=strict,
-        context=context,
-        is_class=is_class,
-        constructor_arguments=constructor_arguments,
+        nullable=nullable,
+    )
+
+
+def composite(
+    default: th.Optional[str],
+    /,
+    *,
+    nullable: bool = False,
+    **constructor_kwargs,
+) -> DynamicField:
+    return DynamicField(
+        default,
+        eval=True,
+        is_class=True,
+        constructor_arguments=constructor_kwargs,
+        nullable=nullable,
     )
 
 
@@ -223,22 +240,37 @@ def _dynamize_fields(
             # write stuff that has been inputted in the init function
             names_with_dict = set()
             for name, value in del_from_kwargs:
-                if name.endswith(_DY_CONSTRUCTOR_ARGS_SUFFIX):
-                    names_with_dict.add(name[: -len(_DY_CONSTRUCTOR_ARGS_SUFFIX)])
-                    continue
-                if name.endswith(_DY_TYPE_SUFFIX):
-                    names_with_dict.add(name[: -len(_DY_TYPE_SUFFIX)])
-                    continue
 
                 # works with both DynamicField and the actual value
                 if isinstance(value, DynamicField):
+                    # give a warning if the value is of DynamicField type
+
+                    warnings.warn(
+                        f"Passing a DynamicField object as a value to {name} is deprecated. "
+                        f"Please use the value of the DynamicField object instead.",
+                        DeprecationWarning,
+                    )
+
                     if value.is_class:
                         value.change_context(globals)
                         setattr(self, name, value.get_instance())
                     else:
                         setattr(self, name, value.value)
                 else:
-                    setattr(self, name, value)
+                    if name + _DY_CONSTRUCTOR_ARGS_SUFFIX in getattr(
+                        self.__class__, _FIELDS, {}
+                    ) or name.endswith(_DY_CONSTRUCTOR_ARGS_SUFFIX):
+                        # This is the name of a composite so handle composites
+                        # handle construction
+                        # TODO: implement this better
+                        _name = (
+                            name
+                            if not name.endswith(_DY_CONSTRUCTOR_ARGS_SUFFIX)
+                            else name[: -len(_DY_CONSTRUCTOR_ARGS_SUFFIX)]
+                        )
+                        names_with_dict.add(_name)
+                    else:
+                        setattr(self, name, value)
 
             del_from_kwargs_dict = dict(del_from_kwargs)
 
@@ -249,8 +281,8 @@ def _dynamize_fields(
 
                 class_name = (
                     val._value
-                    if name + _DY_TYPE_SUFFIX not in del_from_kwargs_dict
-                    else del_from_kwargs_dict[name + _DY_TYPE_SUFFIX]
+                    if name not in del_from_kwargs_dict
+                    else del_from_kwargs_dict[name]
                 )
                 class_args = (
                     val.constructor_arguments
@@ -302,10 +334,6 @@ def _dynamize_fields(
         )
         if new_param not in all_parameters:
             all_parameters.append(new_param)
-        else:
-            raise ValueError(
-                f"Cannot have a field named {name} in the class {cls.__name__} because it is a reserved name"
-            )
 
     # delete *args and **kwargs from all_parameters
     all_parameters = [
