@@ -1,12 +1,12 @@
 from setuptools import setup, find_packages
-from dycode import __version__
+from dypy import __version__
 
 with open("README.md", encoding="utf-8") as f:
     long_description = f.read()
 
 setup(
-    name="dycode",
-    packages=find_packages(include=["dycode", "dycode.*"]),
+    name="dypy",
+    packages=find_packages(include=["dypy", "dypy.*"]),
     version=__version__,
     license="MIT",
     description="A toolset for dynamic python code manipulations",
@@ -14,7 +14,7 @@ setup(
     long_description_content_type="text/markdown",
     author="Vahid Zehtab, Hamid Kamkari",
     author_email="vahid@zehtab.me, hamidrezakamkari@gmail.com",
-    url="https://github.com/vahidzee/dycode",
+    url="https://github.com/vahidzee/dypy",
     keywords=["dynamic coding", "dynamic functions", "lazy evaluation"],
     classifiers=[
         "Development Status :: 3 - Alpha",

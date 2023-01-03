@@ -2,12 +2,12 @@ import typing as th
 import sys
 import inspect
 import abc
-from dycode.core.get_value import get_value as original_get_value
-from dycode.core.types import ContextType
-from dycode.wrappers.utils import make_inheritence_strict
+from ..core.get_value import get_value as original_get_value
+from ..core.types import ContextType
+from .utils import make_inheritence_strict
 import warnings
 
-_FIELDS = "__dycode_fields__"
+_FIELDS = "__dypy_fields__"
 _DY_TYPE_SUFFIX = "_type"
 _DY_CONSTRUCTOR_ARGS_SUFFIX = "_args"
 

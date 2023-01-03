@@ -1,5 +1,5 @@
-from dycode.wrappers.field_wrapper import _dynamize_fields
-from dycode.wrappers.method_wrapper import _dynamize_methods
+from .field_wrapper import _dynamize_fields
+from .method_wrapper import _dynamize_methods
 import typing as th
 
 # Merge the signature of all the wrappers into one signature that acts upon the class

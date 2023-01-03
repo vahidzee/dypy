@@ -2,10 +2,10 @@ import typing as th
 import types
 import sys
 import inspect
-from dycode.core.types import FunctionDescriptor
-from dycode.core.functions import eval_function
+from ..core.types import FunctionDescriptor
+from ..core.functions import eval_function
 import abc
-from dycode.wrappers.utils import make_inheritence_strict
+from ..wrappers.utils import make_inheritence_strict
 
 PREF_FOR_CONSTRUCTOR = "__dy__"
 
@@ -21,7 +21,7 @@ def dynamic_method(func: th.Callable, blend: th.Optional[bool] = None) -> th.Cal
     func : th.Callable
         The method to be tagged
     blend : bool, optional
-        If blend is set to True, then you can also reference the method using its name itself and a __dycode__ prefix
+        If blend is set to True, then you can also reference the method using its name itself and a __dypy__ prefix
         is not necessarily needed anymore
 
     Returns

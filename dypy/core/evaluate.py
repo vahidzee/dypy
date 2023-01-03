@@ -14,7 +14,7 @@ def eval(
     """
     Evaluate variable lookup and function evaluations in a string expression.
 
-    This function is the main entry point for the dycode package. It combines
+    This function is the main entry point for the dypy package. It combines
     the functionality of the get_value and eval_function functions to allow
     for the evaluation of expressions that contain both variable lookups and
     function evaluations.

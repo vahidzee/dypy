@@ -127,7 +127,7 @@ def eval_function(
         context (typing.Any): The context to use when generating the function.
             For example, if the code block is: "math.sin", when evaluating the function descriptor, "math" module
             should be in the context. So context should be a dict with {"math": math}.
-            This argument is optional, and if provided will be used to update (and add to) the DyCode context registry.
+            This argument is optional, and if provided will be used to update (and add to) the dypy context registry.
 
             You can use the register_context function to register a context, and then use it in every call to eval_function,
             without having to pass it as an argument.

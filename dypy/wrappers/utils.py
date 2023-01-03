@@ -16,7 +16,7 @@ def make_inheritence_strict(cls: type, attribute_to_check: str):
         if attribute_to_check not in self.__class__.__dict__:
             raise AttributeError(
                 f"{cls.__name__} is a strict class and can only be inherited by classes with the same criteria:"
-                "\ntry decorating the child class with @dycode.wrappers such as @dycode.wrappers.dynamize"
+                "\ntry decorating the child class with @dypy.wrappers such as @dypy.wrappers.dynamize"
             )
         return old_init(self, *args, **kwargs)
 

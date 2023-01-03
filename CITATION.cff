@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-title: '"DyCode": Python toolset for dynamic code manipulations'
+title: '"DyPy": Python toolset for dynamic code manipulations'
 message: >-
   If you use this software, please cite it using the
   metadata from this file.
@@ -8,7 +8,7 @@ authors:
   - given-names: Vahid
     family-names: Zehtab
     email: vahid@zehtab.me
-repository-code: "https://github.com/vahidzee/dycode/"
+repository-code: "https://github.com/vahidzee/dypy/"
 abstract: >-
   A python package for 
 keywords:

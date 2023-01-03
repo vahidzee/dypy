@@ -1,11 +1,11 @@
-# Dynamic Code (DyCode): a toolset for dynamic python code manipulations
+# Dynamic Python (DyPy): a toolset for dynamic python code manipulations
 
 Have you ever found yourself coding up boilerplates to handle different scenarios? It's most likely that you have thought about using python's `eval` or `exec` in order to decouple some part of your code to be specified and evaluated later on at run-time. But, you have probably also come accross people who discourage you from using `eval`/`exec`. This is because programs with `eval`/`exec` are considered vulnarable and can be used to execute malicious code.
 
-While this is true in general, but in many cases, you do not care about security concerns, and your highest priority is implementing a quick solution to a general problem which could be solved by using `eval` or `exec`. This is where DyCode comes in. It allows you to use `eval` and `exec` effectively by providing utilities to dynamically compile code, lookup variables and lazily evaluate them.
+While this is true in general, but in many cases, you do not care about security concerns, and your highest priority is implementing a quick solution to a general problem which could be solved by using `eval` or `exec`. This is where dypy comes in. It allows you to use `eval` and `exec` effectively by providing utilities to dynamically compile code, lookup variables and lazily evaluate them.
 
 **Table of Contents**
-- [Dynamic Code (DyCode): a toolset for dynamic python code manipulations](#dynamic-code-dycode-a-toolset-for-dynamic-python-code-manipulations)
+- [Dynamic Python (DyPy): a toolset for dynamic python code manipulations](#dynamic-python-dypy-a-toolset-for-dynamic-python-code-manipulations)
   - [Installation](#installation)
   - [Usage](#usage)
     - [Dynamic Evaluation](#dynamic-evaluation)
@@ -18,31 +18,31 @@ While this is true in general, but in many cases, you do not care about security
 ## Installation
 
 ```bash
-pip install dycode
+pip install dypy
 ```
 
 ## Usage
 
 ### Dynamic Evaluation
 
-You can use `dycode.eval` to combine the functionality of `dycode.eval_function` (see [here](#dynamic-function-evaluation)) and `dycode.get_value` (see [here](#variable-lookup)). You can do as follows:
+You can use `dypy.eval` to combine the functionality of `dypy.eval_function` (see [here](#dynamic-function-evaluation)) and `dypy.get_value` (see [here](#variable-lookup)). You can do as follows:
 
 ```python
-import dycode
+import dypy
 
-dycode.eval("math.cos") # <function <lambda> at MEM_ADDRESS> (math is imported through get_value)
-dycode.eval("math.cos", dynamic_args=True)(2, verbose=True) # 3, verbose is ignored (and math is imported through get_value)
-dycode.eval("def my_function(x): return x + 1", function_of_interest="my_function") # <function my_function at MEM_ADDRESS>
-dycode.eval("def my_function(x): return x + y", function_of_interest="my_function", context={"y": 2})(2) # 4
+dypy.eval("math.cos") # <function <lambda> at MEM_ADDRESS> (math is imported through get_value)
+dypy.eval("math.cos", dynamic_args=True)(2, verbose=True) # 3, verbose is ignored (and math is imported through get_value)
+dypy.eval("def my_function(x): return x + 1", function_of_interest="my_function") # <function my_function at MEM_ADDRESS>
+dypy.eval("def my_function(x): return x + y", function_of_interest="my_function", context={"y": 2})(2) # 4
 ```
 
 
 #### Variable Lookup
 
-You can use `dycode.get_value` to lookup a variable as a string and then evaluate it. This is useful when you want to use a variable that is not defined in the current scope. You can do as follows:
+You can use `dypy.get_value` to lookup a variable as a string and then evaluate it. This is useful when you want to use a variable that is not defined in the current scope. You can do as follows:
 
 ```python
-from dycode import get_value
+from dypy import get_value
 
 get_value("math.pi") # 3.141592653589793
 get_value("math.cos(0)") # won't evaluate, this is not a variable but a call to a variable
@@ -62,7 +62,7 @@ For example, imagine you create your own python package with a runnable script t
 Your code would look like this:
 
 ```python
-from dycode import get_value
+from dypy import get_value
 
 def sort_files():
     sort_function = get_value("config.sort", strict=False) or default_sort
@@ -74,7 +74,7 @@ Although this example is somewhat contrived, such a use case is very common in d
 Another potential use case is defining Neural Network layers. You can use `get_value` to lookup custom layers and use them in your model. Such as:
 
 ```python
-from dycode import get_value
+from dypy import get_value
 import torch
 
 class MyLinearBlock(torch.nn.Module):
@@ -93,10 +93,10 @@ This way, you can change the activation function by simply changing the `activat
 
 #### Dynamic Function Evaluation
 
-What if you want to generate python programs dynamically? Meaning that you have a string that contains python code and you want to inject it into your program.  You can use `dycode.eval_function` to evaluate a piece of code and retrieve a function. You can do as follows:
+What if you want to generate python programs dynamically? Meaning that you have a string that contains python code and you want to inject it into your program.  You can use `dypy.eval_function` to evaluate a piece of code and retrieve a function. You can do as follows:
 
 ```python
-from dycode import eval_function
+from dypy import eval_function
 
 eval_function("lambda x: x + 1") # <function <lambda> at MEM_ADDRESS>
 
@@ -112,10 +112,10 @@ eval_function("def my_function(x): return x + 1", function_of_interest="my_funct
 2. A code block, which can contain multiple lines and functions, in which case you need to specify the name of the function of interest using the `function_of_interest` argument. `eval_function` will evaluate the code block and retrieve your function of interest.
 3. A dictionary of "code", ["context", "function_of_interest"] pairs. Useful when you are using `eval_function` on top of a configuration file, in which case you can specify the code and the context for each function of interest.
 
-When evaluating a function descriptor, you can specify a context in which the code will be evaluated. This is useful when you want to use variables that are not defined in the current scope. `dycode` has a context registry that you can use as a global context for all your function evaluations.
+When evaluating a function descriptor, you can specify a context in which the code will be evaluated. This is useful when you want to use variables that are not defined in the current scope. `dypy` has a context registry that you can use as a global context for all your function evaluations.
 
 ```python
-from dycode import eval_function, register_context
+from dypy import eval_function, register_context
 import math
 
 register_context(math, "math") # register math package as a context
@@ -130,7 +130,7 @@ You can also specify a context for each function evaluation using the `context` 
 eval_function("def my_function(x): return x + y", function_of_interest="my_function", context={"y": 1})(2) # 3
 ```
 
-You can also optionally set `dynamic_args=True`, when evaluating a function. This will create a function that intelligently evaluates its arguments, by wrapping it using `dycode.dynamic_args_wrapper`. Functions wrapped by `dycode.dynamic_args_wrapper` preprocess arguments passed to them, and ignore arguments that are not defined in the function signature. For instance:
+You can also optionally set `dynamic_args=True`, when evaluating a function. This will create a function that intelligently evaluates its arguments, by wrapping it using `dypy.dynamic_args_wrapper`. Functions wrapped by `dypy.dynamic_args_wrapper` preprocess arguments passed to them, and ignore arguments that are not defined in the function signature. For instance:
 
 ```python
 eval_function("lambda x: x + 1", dynamic_args=True)(2, verbose=True) # 3, verbose is ignored
@@ -138,10 +138,10 @@ eval_function("lambda x: x + 1", dynamic_args=True)(2, verbose=True) # 3, verbos
 
 ### Variable Assignment
 
-There are times when you want to assign a variable in a dynamic manner. Meaning that you want to change a variable's value that is not necessarily defined in the current scope. You can use `dycode.set_value` to do so.  You can do as follows:
+There are times when you want to assign a variable in a dynamic manner. Meaning that you want to change a variable's value that is not necessarily defined in the current scope. You can use `dypy.set_value` to do so.  You can do as follows:
 
 ```python
-from dycode import set_value
+from dypy import set_value
 
 set_value("some_package.my_function", lambda x: x + 1)
 
@@ -155,8 +155,8 @@ math.pi # 3.14
 
 ## License
 
-DyCode is licensed under the MIT License. See [LICENSE](LICENSE) for the full license text.
+dypy is licensed under the MIT License. See [LICENSE](LICENSE) for the full license text.
 
 ## Citation
 
-If you use DyCode in your research, please cite this repository as described in [CITATION.cff](CITATION.cff).
+If you use dypy in your research, please cite this repository as described in [CITATION.cff](CITATION.cff).
