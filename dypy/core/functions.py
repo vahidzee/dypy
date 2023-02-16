@@ -3,6 +3,8 @@ import types
 import inspect
 import functools
 from .types import ContextType, FunctionDescriptor, CallableFunctionDescriptorStr
+import types
+import copy
 
 # registry for function evaluation
 CONTEXT_REGISTRY = dict()
@@ -45,20 +47,33 @@ def dynamic_args_wrapper(function: th.Callable) -> th.Callable:
     return wrapper
 
 
-def update_function_context(function: th.Callable, context: th.Optional[ContextType] = None) -> th.Callable:
+def update_function_context(function: th.Callable, context: th.Optional[ContextType] = None, copy_context: bool=True) -> th.Callable:
     """
     Updates the context of a function.
 
     Args:
         function (typing.Callable): The function to update.
         context (typing.Optional[ContextType]): The context to update the function with.
+        copy_context (bool): If True, copy the function context so that the update does not affect the global context. Otherwise,
+            update the function context in place, which might affect the context of other functions who share the same __globals__. (default: True) 
 
     Returns:
         typing.Callable: The updated function.
     """
     context = context or {}
     context.update(CONTEXT_REGISTRY)
-    function.__globals__.update(context)
+    if copy_context:
+        original_context = copy.copy(function.__globals__)
+        print(original_context.keys())
+        original_context.update(context)
+        function = types.FunctionType(
+            code=function.__code__,
+            globals=original_context,
+            name=function.__name__,
+            argdefs=function.__defaults__,
+        )
+    else:
+        function.__globals__.update(context)
     return function
 
 
