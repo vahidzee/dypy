@@ -46,6 +46,22 @@ def dynamic_args_wrapper(function: th.Callable) -> th.Callable:
 
     return wrapper
 
+def call_with_dynamic_args(function: th.Callable, *args, **kwargs) -> th.Any:
+    """
+    Calls a function with dynamic arguments, that will try to call the function with the arguments it can, and ignore the rest.
+
+    Args:
+        function (typing.Callable): The function to call.
+        *args: The positional arguments to pass to the function.
+        **kwargs: The keyword arguments to pass to the function.
+
+    Returns:
+        typing.Any: The result of the function call.
+    """
+    signature = inspect.signature(function)
+    params = signature.parameters
+    call_kwargs = {name: kwargs[name] for name in params if name in kwargs}
+    return function(*args, **call_kwargs)
 
 def update_function_context(function: th.Callable, context: th.Optional[ContextType] = None, copy_context: bool=True) -> th.Callable:
     """
